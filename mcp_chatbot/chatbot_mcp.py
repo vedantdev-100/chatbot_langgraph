@@ -28,19 +28,21 @@ client = MultiServerMCPClient(
         #     "command": r"C:\Users\iveda\OneDrive\Desktop\CHATBOT\venv\Scripts\python.exe",          
         #     "args": [ r"C:\Users\iveda\OneDrive\Desktop\mcp_server_local\main.py" ],
         # },
-        "arith": {
-            "transport": "stdio",
-            "command": r"C:\Users\iveda\AppData\Local\Programs\Python\Python311\Scripts\uv.exe",          
-            "args": [ "run", 
-                     "--directory", 
-                     r"C:\Users\iveda\OneDrive\Desktop\mcp_server_local", 
-                     "python", 
-                     "main.py" ],
-        },
-        # "expense": {
-        #     "transport": "streamable_http",  # if this fails, try "sse"
-        #     "url": "https://splendid-gold-dingo.fastmcp.app/mcp"
-        # }
+        # "Demo Server": {
+        #     "transport": "stdio",
+        #     "command": r"C:\Users\Pro-3\AppData\Local\Programs\Python\Python311\Scripts\uv.exe",          
+        #     "args": [ 
+        #         "run", 
+        #         "--directory", 
+        #         r"C:\Users\Pro-3\Desktop\expense-tracker-mcp_server", 
+        #         "python", 
+        #         "main.py" 
+        #     ],
+        # },
+        "Remote MCP Server": {
+            "transport": "streamable_http",  # if this fails, try "sse"
+            "url": "https://provincial-plum-turtle.fastmcp.app/mcp"
+        }
     }
 )
 
@@ -53,14 +55,11 @@ class ChatState(TypedDict):
 async def build_graph():
 
     tools = await client.get_tools()
-
     print(tools)
-
     llm_with_tools = llm.bind_tools(tools)
 
     # nodes
     async def chat_node(state: ChatState):
-
         messages = state["messages"]
         response = await llm_with_tools.ainvoke(messages)
         return {'messages': [response]}
