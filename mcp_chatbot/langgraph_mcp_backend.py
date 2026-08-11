@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.message import add_messages
@@ -15,8 +15,43 @@ import aiosqlite
 import requests
 import asyncio
 import threading
+import json
+import ormsgpack
+
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer, EMPTY_BYTES
 
 load_dotenv()
+
+
+def _patch_jsonplus_serializer_compat():
+    if hasattr(JsonPlusSerializer, "dumps") and hasattr(JsonPlusSerializer, "loads"):
+        return
+
+    def dumps(self, obj):
+        type_, data = self.dumps_typed(obj)
+        if type_ in {"null", "bytes", "bytearray", "msgpack", "pickle"}:
+            return data
+        if type_ == "json":
+            return data
+        raise NotImplementedError(f"JsonPlusSerializer.dumps does not support type {type_}")
+
+    def loads(self, data):
+        if data is None or data == EMPTY_BYTES:
+            return None
+        try:
+            return ormsgpack.unpackb(
+                data,
+                ext_hook=self._unpack_ext_hook,
+                option=ormsgpack.OPT_NON_STR_KEYS,
+            )
+        except ormsgpack.MsgpackDecodeError:
+            return json.loads(data.decode("utf-8"), object_hook=self._reviver)
+
+    JsonPlusSerializer.dumps = dumps
+    JsonPlusSerializer.loads = loads
+
+
+_patch_jsonplus_serializer_compat()
 
 # Dedicated async loop for backend tasks
 _ASYNC_LOOP = asyncio.new_event_loop()
@@ -41,7 +76,7 @@ def submit_async_task(coro):
 # 1. LLM
 # -------------------
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="openai/gpt-oss-20b",
     api_key=os.getenv("GROQ_API_KEY"),
     temperature=0
 )
@@ -104,6 +139,31 @@ class ChatState(TypedDict):
 # -------------------
 # 4. Nodes
 # -------------------
+
+### 4. Sanitize tool outputs — Groq rejects empty/malformed tool content ###
+def sanitize_tool_messages(state: ChatState):
+    """Ensure every ToolMessage has non-empty string content (Groq requires this)."""
+    fixed = []
+    changed = False
+    for msg in state["messages"]:
+        if isinstance(msg, ToolMessage):
+            content = msg.content
+            if not content or (isinstance(content, list) and len(content) == 0):
+                msg = msg.model_copy(update={"content": "No result returned."})
+                changed = True
+            elif isinstance(content, list):
+                text = " ".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+                if not text.strip():
+                    text = "No result returned."
+                msg = msg.model_copy(update={"content": text})
+                changed = True
+        fixed.append(msg)
+    return {"messages": fixed} if changed else {}
+
+
 async def chat_node(state: ChatState):
     """LLM node that may answer or request a tool call."""
     messages = state["messages"]
@@ -134,8 +194,10 @@ graph.add_edge(START, "chat_node")
 
 if tool_node:
     graph.add_node("tools", tool_node)
+    graph.add_node("sanitize", sanitize_tool_messages)
     graph.add_conditional_edges("chat_node", tools_condition)
-    graph.add_edge("tools", "chat_node")
+    graph.add_edge("tools", "sanitize")
+    graph.add_edge("sanitize", "chat_node")
 else:
     graph.add_edge("chat_node", END)
 
