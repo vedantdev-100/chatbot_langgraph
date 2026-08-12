@@ -29,11 +29,18 @@ mcp_client = MultiServerMCPClient(
     {
         "arith": {
             "transport": "stdio",
-            "command": r"C:\Users\Pro-3\Desktop\local_mcp_lgin\.venv\Scripts\python.exe",
+            "command": r"C:\Users\iveda\OneDrive\Desktop\CHATBOT\venv\Scripts\python.exe",
             "args": [
-                r"C:\Users\Pro-3\Desktop\local_mcp_lgin\main.py",
+                r"C:\Users\iveda\OneDrive\Desktop\mcp_server_local\main.py",
             ],
         },
+        # "arith": {
+        #     "transport": "stdio",
+        #     "command": r"C:\Users\Pro-3\Desktop\local_mcp_lgin\.venv\Scripts\python.exe",
+        #     "args": [
+        #         r"C:\Users\Pro-3\Desktop\local_mcp_lgin\main.py",
+        #     ],
+        # },
         "expense": {
             "transport": "streamable_http",  # if this fails, try "sse"
             "url": "https://provincial-plum-turtle.fastmcp.app/mcp",
@@ -102,8 +109,8 @@ async def main():
     chatbot = await build_graph()
 
     # result = await chatbot.ainvoke({"messages": [HumanMessage(content="Add an expense of rupees 9678 for pertol expense for vehicle")]})
-    result = await chatbot.ainvoke({"messages": [HumanMessage(content="Get list of all the expenses saved in the database")]})
-    print("Messages: ", result['messages'])
+    result = await chatbot.ainvoke({"messages": [HumanMessage(content="give the list of expenses for the month of August")]})
+    # print("Messages: ", result['messages'])
     # print("Result: ", result)
 
     print("Messages: ", result['messages'][-1].content)

@@ -1,7 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
 from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -100,13 +99,22 @@ def get_stock_price(symbol: str) -> dict:
 
 client = MultiServerMCPClient(
     {
+        #laptop
         "arith": {
             "transport": "stdio",
-            "command": r"C:\Users\Pro-3\Desktop\local_mcp_lgin\.venv\Scripts\python.exe",
+            "command": r"C:\Users\iveda\OneDrive\Desktop\CHATBOT\venv\Scripts\python.exe",
             "args": [
-                r"C:\Users\Pro-3\Desktop\local_mcp_lgin\main.py",
+                r"C:\Users\iveda\OneDrive\Desktop\mcp_server_local\main.py",
             ],
         },
+        # pc
+        # "arith": {
+        #     "transport": "stdio",
+        #     "command": r"C:\Users\Pro-3\Desktop\local_mcp_lgin\.venv\Scripts\python.exe",
+        #     "args": [
+        #         r"C:\Users\Pro-3\Desktop\local_mcp_lgin\main.py",
+        #     ],
+        # },
         "expense": {
             "transport": "streamable_http",  # if this fails, try "sse"
             "url": "https://provincial-plum-turtle.fastmcp.app/mcp",
